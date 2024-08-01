@@ -2,15 +2,18 @@
   "name": "extraindo-dados-arquivos",
   "version": "1.0.0",
   "description": "Sistema para extrair informações de arquivo (CSV,JSON,XML) e enviar para o banco de dados",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "node ."
-    
+    "dev": "node --watch ."
   },
   "author": "Higor Costa",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^5.17.0",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.17.0"
   }
 }
