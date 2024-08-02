@@ -2,13 +2,9 @@ var routes = require("./routes")
 var express = require("express")
 var app = express()
 
-/*var bodyParser = require('body-parser')
+/*
 const cors = require('cors');
 
-// parse application/x-www-form-urlencoded
-app.use(bodyParser.urlencoded({ extended: false }))
-// parse application/json
-app.use(bodyParser.json())
 //cors
 app.use(
     cors({
@@ -18,6 +14,11 @@ app.use(
     })
   );
 */
+var bodyParser = require('body-parser')
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }))
+// parse application/json
+app.use(bodyParser.json())
 app.use(routes);
 
 app.listen(3003,() => {
