@@ -3,6 +3,7 @@ const multer = require('multer');
 const { Readable } = require('stream');
 const readLine = require('readline');
 const client = require('./database/client');
+const { extractDataXLS_Servidores } = require('./ultils/extractData');
 
 const multerConfig = multer();
 const routes = Router();
@@ -51,7 +52,7 @@ routes.post("/products", multerConfig.single("file"), async( request, response)=
 
 })
 
-routes.post("/products/dinamic", multerConfig.single("file"), async( request, response)=>{
+routes.post("/products/dinamicc", multerConfig.single("file"), async( request, response)=>{
     //console.log(request.file);
     const {buffer} = request.file
     const {
@@ -83,7 +84,7 @@ routes.post("/products/dinamic", multerConfig.single("file"), async( request, re
     for await(let line of dataLine){
         const lineSplit = line.split('|');
         console.log(lineSplit[0])
-        
+
         data.push({
         nome: lineSplit[columnNome],
         vinculo: lineSplit[columnVinculo],       
@@ -112,8 +113,23 @@ routes.post("/products/dinamic", multerConfig.single("file"), async( request, re
     return response.json(data);
 
 })
+
+routes.post("/products/dinamic", multerConfig.single("file"), async( request, response)=>{
+    //console.log(request.file);
+    const {buffer} = request.file
+ 
+    const readableFile = new Readable();
+    readableFile.push(buffer)
+    readableFile.push(null)
+    const fileBuffer = readableFile.read()
+    const resultExtract = await extractDataXLS_Servidores(fileBuffer)
+
+    console.log(resultExtract)
+
+    response.json({"resultExtract": resultExtract})
+})
 routes.get("/", ( request, response)=>{
     console.log('a')
     return response.send();
 })
-module.exports = routes
+module.exports = routes;
