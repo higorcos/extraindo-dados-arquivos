@@ -1,9 +1,10 @@
-var routes = require("./routes")
-var express = require("express")
-var app = express()
-
-/*
+const bodyParser = require('body-parser')
+const routes = require("./routes")
+const express = require("express")
 const cors = require('cors');
+const app = express()
+
+
 
 //cors
 app.use(
@@ -13,8 +14,7 @@ app.use(
       allowedHeaders: "*",
     })
   );
-*/
-var bodyParser = require('body-parser')
+
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
 // parse application/json

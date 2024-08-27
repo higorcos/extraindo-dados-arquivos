@@ -8,53 +8,10 @@ const { extractDataXLS_Servidores, extractDataXML_Servidores } = require('./ulti
 const multerConfig = multer();
 const routes = Router();
 
-routes.post("/products", multerConfig.single("file"), async( request, response)=>{
+
+const processCSV =  async(file, request, response)=>{
     //console.log(request.file);
-    const {buffer} = request.file
-    
-    const readableFile = new Readable();
-    readableFile.push(buffer)
-    readableFile.push(null)
-    const dataLine = readLine.createInterface({
-        input: readableFile
-    })
-    const data = []
-
-    for await(let line of dataLine){
-        const lineSplit = line.split('|');
-        //console.log(lineSplit[0])
-        data.push({
-        nome: lineSplit[4],
-        vinculo: lineSplit[19],       
-        mes_periodo: lineSplit[1],
-        ano: lineSplit[2],
-        orgao: lineSplit[0],
-        cpf: lineSplit[5],
-        matricula: lineSplit[6], 
-        cargo: lineSplit[8],
-        dataAdmissao: lineSplit[10],//10
-        cargaHoraria: lineSplit[13],
-        valorBruto: parseFloat(lineSplit[15]),
-        valorLiquido: parseFloat(lineSplit[16]),
-        valorDesconto: parseFloat(lineSplit[15]),
-        })
-    }
-
-    for await (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of data){
-        await client.DadosExatraidosFolhaDePagementos.create(
-            {
-                data:{nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,cargaHoraria,valorBruto,valorLiquido,valorDesconto}
-            })
-    }
-
-
-    return response.json(data);
-
-})
-
-routes.post("/products/dinamic/csv", multerConfig.single("file"), async( request, response)=>{
-    //console.log(request.file);
-    const {buffer} = request.file
+    const {buffer} = file
     const {
         columnNome, 
         columnVinculo, 
@@ -71,7 +28,7 @@ routes.post("/products/dinamic/csv", multerConfig.single("file"), async( request
         columnValorDesconto
             } = request.body
 
-    console.log(request.body)
+        console.log( request.body)
     
     const readableFile = new Readable();
     readableFile.push(buffer)
@@ -83,8 +40,8 @@ routes.post("/products/dinamic/csv", multerConfig.single("file"), async( request
 
     for await(let line of dataLine){
         const lineSplit = line.split('|');
-        console.log(lineSplit[0])
 
+        
         data.push({
         nome: lineSplit[columnNome],
         vinculo: lineSplit[columnVinculo],       
@@ -100,44 +57,124 @@ routes.post("/products/dinamic/csv", multerConfig.single("file"), async( request
         valorLiquido: parseFloat(lineSplit[columnValorLiquido]),
         valorDesconto: parseFloat(lineSplit[columnValorDesconto]),
         })
+
+
     }
-    /*
+    //console.log(data)
+    
     for await (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of data){
         await client.DadosExatraidosFolhaDePagementos.create(
             {
                 data:{nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,cargaHoraria,valorBruto,valorLiquido,valorDesconto}
             })
-    }*/
+    }
 
 
     return response.json(data);
 
-})
+}
 
-routes.post("/products/dinamic/xls", multerConfig.single("file"), async( request, response)=>{
-    //console.log(request.file);
-    const {buffer} = request.file
- 
-    const resultExtract = await extractDataXLS_Servidores(buffer)
+const processXLS = async(file, request, response)=>{
 
-    console.log(resultExtract)
+    const {buffer} = file
+    const params = request.body
+   
 
-    response.json({"resultExtract": resultExtract})
-})
+    
+    const resultExtract = await extractDataXLS_Servidores(buffer,params)
 
-routes.post("/products/dinamic/xml", multerConfig.single("file"), async( request, response)=>{
-    //console.log(request.file);
-    const {buffer} = request.file
- 
-    const resultExtract = await extractDataXML_Servidores()
-
-    console.log(resultExtract)
+    //console.log(resultExtract)
 
     response.json({"resultExtract": resultExtract})
+}
+
+const processXML = async(file, request, response)=>{
+    const {buffer} = file
+ 
+    const resultExtract = await extractDataXML_Servidores(buffer)
+
+    //console.log(resultExtract)
+
+    response.json({"resultExtract": resultExtract})
+}
+
+routes.post("/test", multerConfig.single("file"), async( request, response)=>{
+    //console.log(request.file);
+    const file = request.file
+    const {body} = request
+
+    console.log(file)
+    //console.log(body) 
+
+    switch (file.mimetype) {
+        case 'text/csv':
+            console.log("__CSV")
+            processCSV(file, request, response);
+            break;
+        case 'application/vnd.ms-excel':
+            console.log("__XLS_EXECEL")
+            processXLS(file,request, response);
+            break;
+        case 'application/xml':
+            console.log("__XML")
+            processXML(file,request, response);
+            break;
+        case 'application/json':
+            console.log("__JSON")
+            processJSON(file,request, response);
+            break;
+        default:
+            res.status(400).json('Unsupported file type');
+    }
+})
+
+
+routes.post("/test", multerConfig.single("file"), async( request, response)=>{
+    //console.log(request.file);
+    const file = request.file
+    const {body} = request
+
+    console.log(file)
+    //console.log(body) 
+
+    switch (file.mimetype) {
+        case 'text/csv':
+            console.log("__CSV")
+            processCSV(file, request, response);
+            break;
+        case 'application/vnd.ms-excel':
+            console.log("__XLS_EXECEL")
+            processXLS(file,request, response);
+            break;
+        case 'application/xml':
+            console.log("__XML")
+            processXML(file,request, response);
+            break;
+        case 'application/json':
+            console.log("__JSON")
+            processJSON(file,request, response);
+            break;
+        default:
+            response.status(400).json('Unsupported file type');
+    }
+})
+
+routes.post("/juntarCSV", multerConfig.array("file"), async( request, response)=>{
+    //console.log(request.file);
+    const {files} = request
+    const {body} = request
+   response.status(400).json({"Novo Arquivo": files[0].buffer})
 })
 
 routes.get("/", ( request, response)=>{
     console.log('a')
     return response.send();
+})
+
+routes.get("/listagem", async ( request, response)=>{
+
+    const a = await client.DadosExatraidosFolhaDePagementos.findMany();
+    console.log(a)
+    return response.status(200).json({"error": false, "result": a});
 })
 module.exports = routes;
