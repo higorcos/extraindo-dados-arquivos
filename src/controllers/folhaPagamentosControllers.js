@@ -140,21 +140,7 @@ module.exports = {
         });
     },
     show: async (request, response)=>{
-        try {/*
-        const sql = type.executeQuery(
-            
-                `INSERT INTO ORGAO
-                (ID, CNPJ, NOME, UUID)
-                VALUES(?, ?, ?, ?);`,
-            [
-              uuid(),
-              'a',
-              'b', 
-              'c',
-            ],
-         
-          );*/
-    
+        try {    
         executeQuery(
             `SELECT * FROM ORGAO`
              ,[],
