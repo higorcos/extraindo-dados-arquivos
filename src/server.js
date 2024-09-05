@@ -2,7 +2,9 @@ const bodyParser = require('body-parser')
 const routes = require("./routes")
 const express = require("express")
 const cors = require('cors');
+require("dotenv").config();
 const app = express()
+
 
 
 
@@ -13,7 +15,7 @@ app.use(
       origin: "*",
       allowedHeaders: "*",
     })
-  );
+  ); 
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -21,6 +23,8 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 app.use(routes);
 
-app.listen(3003,() => {
-    console.log("Servidor rodando")
+app.listen(process.env.PORT_SERVER,() => {
+    console.log(`\n\tServidor online !!! \n\tPorta: ${process.env.PORT_SERVER} \n\tModo: ${
+      process.env.NODE_ENV
+    }\n`)
 });
