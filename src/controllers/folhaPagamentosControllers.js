@@ -2,7 +2,8 @@ const { extractDataXLS_Servidores, extractDataXML_Servidores } = require('../ult
 
 const {executeQuery,executeQueryTrx} = require('../database/type');
 const { v4: uuid } = require('uuid');
-
+const { Readable } = require('stream');
+const readLine = require('readline');
 
 const processCSV =  async(file, request, response)=>{
     
@@ -31,7 +32,7 @@ const processCSV =  async(file, request, response)=>{
         input: readableFile
     })
     const data = []
-
+ 
     for await(let line of dataLine){
         const lineSplit = line.split('|');
 
@@ -64,7 +65,12 @@ const processCSV =  async(file, request, response)=>{
         */
 
 
-    return response.json(data);
+    return response.status(200).json({
+        error: false,
+        title: 'Sucesso, novos dados inserido via csv',
+        data: result
+    });
+
 
 }
 const processXLS = async(file, request, response)=>{
@@ -72,27 +78,31 @@ const processXLS = async(file, request, response)=>{
     const {buffer} = file
     const params = request.body
     
-    const resultExtract = await extractDataXLS_Servidores(buffer,params)
+    const data = await extractDataXLS_Servidores(buffer,params)
 
     response.json({"resultExtract": resultExtract})
+    return response.status(200).json({
+        error: false,
+        title: 'Sucesso, novos dados inserido via XLS',
+        data
+    });
 }
 const processXML = async(file, request, response)=>{
     const {buffer} = file
 
-    const resultExtract = await extractDataXML_Servidores(buffer)
+    const data = await extractDataXML_Servidores(buffer)
 
-    response.json({"resultExtract": resultExtract})
+    return response.status(200).json({
+        error: false,
+        title: 'Sucesso, novos dados inserido via XML',
+        data
+    });
 }
 
 
 module.exports = {
     insert: async( request, response)=>{
-        //console.log(request.file);
-        const file = request.file
-        const {body} = request
-    
-        console.log(file)
-        //console.log(body) 
+        const file = request.file   
     
         switch (file.mimetype) {
             case 'text/csv':
@@ -112,16 +122,24 @@ module.exports = {
                 processJSON(file,request, response);
                 break;
             default:
-                response.status(400).json('Unsupported file type');
+                return response.status(502).json({
+                    error: true,
+                    error_title: "Error, Unsupported file type",
+                    data: []
+                });
         }
     },
     joinCSV: async( request, response)=>{
         //console.log(request.file);
         const {files} = request
         const {body} = request
-       response.status(400).json({"Novo Arquivo": files[0].buffer})
+        return response.status(200).json({
+            error: false,
+            title: 'Sucesso, novo arquivo gerado',
+            data: files[0].buffer
+        });
     },
-    show: (request, response)=>{
+    show: async (request, response)=>{
         try {/*
         const sql = type.executeQuery(
             
@@ -134,19 +152,7 @@ module.exports = {
               'b', 
               'c',
             ],
-            (err, result) => {
-              if (err) {
-                console.log(err);
-                return response.status(501).json({
-                  error: true,
-                 
-                });
-              }
-              return response.status(200).json({
-                error: false,
-                
-              });
-            }
+         
           );*/
     
         executeQuery(
@@ -155,27 +161,40 @@ module.exports = {
             (err, result) => {
                 if (err) {
                 console.log(err);
-                return response.status(501).json({
+                return response.status(502).json({
                     error: true,
+                    error_title: "Erro, na resposta do banco de dados",
+                    error_msg: error,
                     data: []
                 });
                 }
-                //xconsole.log(result)
+             
                 return response.status(200).json({
-                error: false,
-                data: result
+                    error: false,
+                    title: 'Sucesso, listagem de dados',
+                    data: result
                 });
             }
             );
-        }catch(error){
-            return response.send('<h1>ERRO</h1>');
+        }catch(error){       
+            return response.status(500).json({
+                error: true,
+                error_title: "Erro inesperado",
+                error_msg: error,
+                data: []
+            });
         }
     },
     list: async ( request, response)=>{
     
         //const a = await client.DadosExatraidosFolhaDePagementos.findMany();
         //console.log(a)
-        return response.status(200).json({"error": false, "result": 'a'});
+        return response.status(200).json({
+            error: false,
+            title: 'Sucesso, listagem das folhas de pagamento',
+            data: []
+            });
+    
     },
 
 }
