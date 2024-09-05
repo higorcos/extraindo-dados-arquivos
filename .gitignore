@@ -3,3 +3,4 @@ prisma/dev.db
 prisma/dev.db
 /.env
 .env
+.env
