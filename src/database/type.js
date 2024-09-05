@@ -1,5 +1,5 @@
 const firebird = require("node-firebird");
-const options = require("./clientF");
+const options = require("./client");
 
 module.exports ={
 executeQuery:(sql, params, callback)=>{
@@ -36,3 +36,4 @@ return new Promise((resolve, reject)=>{
     });
 });
 },}
+ 

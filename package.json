@@ -9,7 +9,6 @@
   "author": "Higor Costa",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^5.17.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -19,8 +18,5 @@
     "uuid": "^10.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "xml-js": "^1.6.11"
-  },
-  "devDependencies": {
-    "prisma": "^5.17.0"
   }
-}
+} 
