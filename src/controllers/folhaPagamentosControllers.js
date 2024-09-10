@@ -5,7 +5,13 @@ const { v4: uuid } = require('uuid');
 const { Readable } = require('stream');
 const readLine = require('readline');
 
+const Firebird = require("node-firebird");
+const options = require("../database/client");
+const folhaSQL = require("../models/folhaPagamentosModels")
+
+
 const processCSV =  async(file, request, response)=>{
+    const {idPortal} = request.params;
     
     const {buffer} = file
     const {
@@ -55,21 +61,76 @@ const processCSV =  async(file, request, response)=>{
 
     }
     
-    /*
-    for await (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of data){
-        await client.DadosExatraidosFolhaDePagementos.create(
-            {
-                data:{nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,cargaHoraria,valorBruto,valorLiquido,valorDesconto}
-            })
+    Firebird.attach(options, (err, db) => {
+        if (err) {
+          return response.status(500).json({
+            err: true,
+            erro_msg: err,
+            msg: "Erro, conexão",
+          });
         }
-        */
+  
+        db.transaction(
+          Firebird.ISOLATION_READ_COMMITED,
+          async (err, transaction) => {
+            if (err) {
+              db.detach();  
+              return response.status(500).json({
+                err: true,
+                msg: err,
+              });
+            } 
+                
+            try{
+                const dataPortal = await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
+                //if(data)
+                if(dataPortal.length == 0 ){
+                    return response.status(404).json({
+                        err: true,
+                        msg: "Erro, Portal não encontrado no sistema",
+                        erro_msg: "não encontrado",
+                    });
+                }
+                console.log(dataPortal)
+
+                for (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of data){    
+                    let newId = uuid()
+                    await executeQueryTrx(transaction,folhaSQL.created,[newId,nome,vinculo,mes_periodo,ano,dataPortal[0]["ID"],cpf,matricula,cargo,"2001-06-23",cargaHoraria,valorBruto,valorLiquido,valorDesconto])
+                }
+                
+                await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
 
 
-    return response.status(200).json({
-        error: false,
-        title: 'Sucesso, novos dados inserido via csv',
-        data: result
-    });
+                // Commit...
+                transaction.commit((err) => {
+                    if (err) {
+                    transaction.rollback();
+                    response.status(500).json({
+                        err: true,
+                        msg: "Erro, rollback realizado",
+                        erro_msg: err,
+                    });
+                    } else {
+                        console.log("Sucesso, FL cadastradas")
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, novos dados inserido via csv',
+                            
+                        });
+                    }})
+                   
+                }catch(error){
+                    transaction.rollback();
+                    
+                    return response.status(404).json({
+                        error: true,
+                        title: 'Erro, operação de cadastro de folha',
+                        
+                    });
+            }
+          })
+    })
+  
 
 
 }
@@ -146,7 +207,6 @@ module.exports = {
              ,[],
             (err, result) => {
                 if (err) {
-                console.log(err);
                 return response.status(502).json({
                     error: true,
                     error_title: "Erro, na resposta do banco de dados",
@@ -174,7 +234,6 @@ module.exports = {
     list: async ( request, response)=>{
     
         //const a = await client.DadosExatraidosFolhaDePagementos.findMany();
-        //console.log(a)
         return response.status(200).json({
             error: false,
             title: 'Sucesso, listagem das folhas de pagamento',
@@ -184,3 +243,5 @@ module.exports = {
     },
 
 }
+
+

@@ -7,7 +7,7 @@ executeQuery:(sql, params, callback)=>{
     firebird.attach(options, function(err, db) {
             
         if (err) {
-            console.log(err);
+            
             return callback(err, []); 
         } 
 

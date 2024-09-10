@@ -12,13 +12,8 @@ module.exports = {
         try {
             executeQuery(UserModels.authorization,[email,password],
                 (err, result) => {
-                    console.log(result)
 
-                    console.log(result)
-                console.log(err)
                 if (err) {
-                    console.log(err)
-                    console.log(result)
                     return response.status(502).json({
                         error: true,
                         error_title: "Erro, na resposta do banco de dados",
@@ -72,8 +67,6 @@ module.exports = {
             executeQuery(UserModels.login,[email,password],
                 (err, result) => {
                     if (err) {
-                        console.log(err)
-                        console.log(result)
                         return response.status(502).json({
                             error: true,
                             error_title: "Erro, na resposta do banco de dados",

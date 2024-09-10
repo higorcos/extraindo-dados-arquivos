@@ -5,7 +5,10 @@ const multerConfig = multer();
 const folhaPagamentosControllers = require("../controllers/folhaPagamentosControllers");
 const {verifyJWT: middlewareAuth} = require("../middleware/auth"); //middleware
 
-routes.post("/test", multerConfig.single("file"), folhaPagamentosControllers.insert);
+routes.post("/test/:idPortal", multerConfig.fields([
+    { name: 'file', maxCount: 1 },  
+    { name: 'fileRubricas', maxCount: 1 } 
+]), folhaPagamentosControllers.insert);
 routes.post("/juntarCSV", multerConfig.array("file"), folhaPagamentosControllers.joinCSV);
 routes.get("/", folhaPagamentosControllers.show);
 routes.get("/listagem", middlewareAuth , folhaPagamentosControllers.list);
