@@ -8,12 +8,13 @@ const readLine = require('readline');
 const Firebird = require("node-firebird");
 const options = require("../database/client");
 const folhaSQL = require("../models/folhaPagamentosModels")
+const rubricasModel = require("../models/rubricasModels")
 
 
 const processCSV =  async(file, request, response)=>{
     const {idPortal} = request.params;
     
-    const {buffer} = file
+    const {fileFolha, fileRubricas} = file
     const {
         columnNome, 
         columnVinculo, 
@@ -30,19 +31,23 @@ const processCSV =  async(file, request, response)=>{
         columnValorDesconto
             } = request.body
 
+    const bufferFolha = fileFolha[0].buffer
+    const bufferRubricas = fileRubricas[0].buffer
     
-    const readableFile = new Readable();
-    readableFile.push(buffer)
-    readableFile.push(null)
+    console.log(bufferFolha)
+    
+    const rfileFolha = new Readable();
+    rfileFolha.push(bufferFolha)
+    rfileFolha.push(null)
     const dataLine = readLine.createInterface({
-        input: readableFile
+        input: rfileFolha
     })
-    const data = []
+    const dataFolha = []
  
     for await(let line of dataLine){
         const lineSplit = line.split('|');
 
-        data.push({
+        dataFolha.push({
         nome: lineSplit[columnNome],
         vinculo: lineSplit[columnVinculo],       
         mes_periodo: lineSplit[columnMes_Periodo],
@@ -61,6 +66,32 @@ const processCSV =  async(file, request, response)=>{
 
     }
     
+    const rfileRubricas = new Readable();
+    rfileRubricas.push(bufferRubricas)
+    rfileRubricas.push(null)
+    const dataLineRubricas = readLine.createInterface({
+        input: rfileRubricas
+    })
+    const dataRubricas = []
+ 
+    for await(let lineRubricas of dataLineRubricas){
+        const lineSplit = lineRubricas.split('|');
+        const columnCpf = 4
+        const columnMes_Periodo = 1
+        const columnAno = 2
+        const columnTipoPagamento = 7
+        const columnValor = 8
+        const columnDesconto = 14 
+
+        dataRubricas.push({
+        cpf: lineSplit[columnCpf],
+        mes_periodo: lineSplit[columnMes_Periodo],
+        ano: lineSplit[columnAno],
+        tipoPagamento: lineSplit[columnTipoPagamento],
+        desconto: lineSplit[columnDesconto],
+        valor: parseFloat(lineSplit[columnValor]),
+        })
+    }
     Firebird.attach(options, (err, db) => {
         if (err) {
           return response.status(500).json({
@@ -93,13 +124,26 @@ const processCSV =  async(file, request, response)=>{
                 }
                 console.log(dataPortal)
 
-                for (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of data){    
-                    let newId = uuid()
-                    await executeQueryTrx(transaction,folhaSQL.created,[newId,nome,vinculo,mes_periodo,ano,dataPortal[0]["ID"],cpf,matricula,cargo,"2001-06-23",cargaHoraria,valorBruto,valorLiquido,valorDesconto])
+                for (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of dataFolha){    
+                    
+                    //await executeQueryTrx(transaction,folhaSQL.created,[uuid(),nome,vinculo,mes_periodo,ano,dataPortal[0]["ID"],cpf,matricula,cargo,"2001-06-23",cargaHoraria,valorBruto,valorLiquido,valorDesconto])
+                }
+
+                for (let {cpf,mes_periodo,ano,tipoPagamento,desconto,valor} of dataRubricas){
+                    if(desconto == 'N'){
+                        desconto = 1
+                    }else{
+                        desconto = 0
+                    }
+                    //console.log(cpf,mes_periodo,ano,tipoPagamento,desconto,valor)    
+            
+                    //await executeQueryTrx(transaction,rubricasModel.created,[uuid(),cpf,dataPortal[0]["ID"],mes_periodo,ano,tipoPagamento,desconto,valor])
+                    
                 }
                 
-                await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
-
+                //const a=  await executeQueryTrx(transaction,rubricasModel.checkDescontos,[])
+                //await executeQueryTrx(transaction,folhaSQL.updateDesconto,[])
+                //console.log(a)
 
                 // Commit...
                 transaction.commit((err) => {
@@ -130,9 +174,6 @@ const processCSV =  async(file, request, response)=>{
             }
           })
     })
-  
-
-
 }
 const processXLS = async(file, request, response)=>{
 
@@ -160,32 +201,34 @@ const processXML = async(file, request, response)=>{
     });
 }
 
-
 module.exports = {
     insert: async( request, response)=>{
-        const file = request.file   
-    
-        switch (file.mimetype) {
+        const {fileFolha, fileRubricas} = request.files;
+        const files = request.files;
+
+       
+        //apenas o tipo csv aceita folha e rubicas juntos
+        switch (fileFolha[0]['mimetype']) {
             case 'text/csv':
                 console.log("__CSV")
-                processCSV(file, request, response);
+                processCSV(files, request, response);
                 break;
             case 'application/vnd.ms-excel':
                 console.log("__XLS_EXECEL")
-                processXLS(file,request, response);
+                processXLS(fileFolha,request, response);
                 break;
             case 'application/xml':
                 console.log("__XML")
-                processXML(file,request, response);
+                processXML(fileFolha,request, response);
                 break;
             case 'application/json':
                 console.log("__JSON")
-                processJSON(file,request, response);
+                processJSON(fileFolha,request, response);
                 break;
             default:
                 return response.status(502).json({
-                    error: true,
-                    error_title: "Error, Unsupported file type",
+                    err: true,
+                    err_msg: "Error, Unsupported file type",
                     data: []
                 });
         }
@@ -243,5 +286,3 @@ module.exports = {
     },
 
 }
-
-

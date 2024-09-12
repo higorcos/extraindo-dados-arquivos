@@ -7,4 +7,8 @@ module.exports = {
             SELECT ID, CNPJ, NOME
             FROM ORGAO o
             WHERE UUID=?;`,
+        updateDesconto:`
+        UPDATE ARQ_FOLHADEPAGAMENTOS
+        SET  VALORDESCONTO=0
+        WHERE CPF='01659729394';`
 }
