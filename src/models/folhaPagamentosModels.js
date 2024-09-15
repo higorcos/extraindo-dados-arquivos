@@ -1,14 +1,18 @@
 module.exports = {
-    created: `INSERT INTO ARQ_FOLHADEPAGAMENTOS
-            (ID, NOME, VINCULO, MES_PERIODO, ANO, ORGAO, CPF, MATRICULA, CARGO, DATAADMISSAO, CARGAHORARIA, VALORBRUTO, VALORLIQUIDO, VALORDESCONTO)
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        created: `INSERT INTO ARQ_FOLHADEPAGAMENTOS
+                (ID, NOME, MES_PERIODO, ANO, TIPO_FOLHA, ORGAO, CPF, MATRICULA, CBO, CARGO, LOTACAO, VINCULO, DATAADMISSAO, CARGAHORARIA, VALORBRUTO, VALORLIQUIDO, VALORDESCONTO)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
 
-    checkPortal:`
-            SELECT ID, CNPJ, NOME
-            FROM ORGAO o
-            WHERE UUID=?;`,
+        checkPortal:`
+                SELECT ID, CNPJ, NOME
+                FROM ORGAO o
+                WHERE UUID=?;`,
+
         updateDesconto:`
-        UPDATE ARQ_FOLHADEPAGAMENTOS
-        SET  VALORDESCONTO=0
-        WHERE CPF='01659729394';`
+                UPDATE ARQ_FOLHADEPAGAMENTOS
+                SET  VALORDESCONTO=?
+                WHERE ID=?;`,
+
+        select: `SELECT ID, NOME, MES_PERIODO, ANO, TIPO_FOLHA, ORGAO, CPF, MATRICULA, CBO, CARGO, LOTACAO, VINCULO, DATAADMISSAO, CARGAHORARIA, VALORBRUTO, VALORLIQUIDO, VALORDESCONTO
+                FROM ARQ_FOLHADEPAGAMENTOS;`
 }

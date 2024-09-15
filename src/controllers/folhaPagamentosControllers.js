@@ -8,7 +8,9 @@ const readLine = require('readline');
 const Firebird = require("node-firebird");
 const options = require("../database/client");
 const folhaSQL = require("../models/folhaPagamentosModels")
-const rubricasModel = require("../models/rubricasModels")
+const rubricasModel = require("../models/rubricasModels");
+const { formatDataDB } = require('../ultils/formatDate');
+const {getTypePortal} = require('../ultils/typePortal');
 
 
 const processCSV =  async(file, request, response)=>{
@@ -17,18 +19,21 @@ const processCSV =  async(file, request, response)=>{
     const {fileFolha, fileRubricas} = file
     const {
         columnNome, 
-        columnVinculo, 
         columnMes_Periodo,
         columnAno,
         columnOrgao,
         columnCpf, 
         columnMatricula, 
+        columnCBO,
         columnCargo, 
+        columnLotacao,
+        columnVinculo, 
         columnDataAdmissao, 
         columnCargaHoraria, 
         columnValorBruto, 
         columnValorLiquido, 
-        columnValorDesconto
+        columnValorDesconto,
+        columnIdTipoPagamento,
             } = request.body
 
     const bufferFolha = fileFolha[0].buffer
@@ -49,21 +54,22 @@ const processCSV =  async(file, request, response)=>{
 
         dataFolha.push({
         nome: lineSplit[columnNome],
-        vinculo: lineSplit[columnVinculo],       
         mes_periodo: lineSplit[columnMes_Periodo],
         ano: lineSplit[columnAno],
+        idTipoPagamento: lineSplit[columnIdTipoPagamento],
         orgao: lineSplit[columnOrgao],
         cpf: lineSplit[columnCpf],
+        cbo: lineSplit[columnCBO],
         matricula: lineSplit[columnMatricula], 
         cargo: lineSplit[columnCargo],
-        dataAdmissao: lineSplit[columnDataAdmissao],//10
+        lotacao: lineSplit[columnLotacao],       
+        vinculo: "" ,//lineSplit[columnLotacao], // Alterar aqui - Criar logicas
+        dataAdmissao:   formatDataDB(lineSplit[columnDataAdmissao]),//10
         cargaHoraria: lineSplit[columnCargaHoraria],
         valorBruto: parseFloat(lineSplit[columnValorBruto]),
         valorLiquido: parseFloat(lineSplit[columnValorLiquido]),
-        valorDesconto: parseFloat(lineSplit[columnValorDesconto]),
+        valorDesconto: 0,
         })
-
-
     }
     
     const rfileRubricas = new Readable();
@@ -82,16 +88,35 @@ const processCSV =  async(file, request, response)=>{
         const columnTipoPagamento = 7
         const columnValor = 8
         const columnDesconto = 14 
+        const columnIdTipoPagamento = 3
 
         dataRubricas.push({
         cpf: lineSplit[columnCpf],
         mes_periodo: lineSplit[columnMes_Periodo],
         ano: lineSplit[columnAno],
         tipoPagamento: lineSplit[columnTipoPagamento],
+        idTipoPagamento: lineSplit[columnIdTipoPagamento],
         desconto: lineSplit[columnDesconto],
         valor: parseFloat(lineSplit[columnValor]),
         })
     }
+
+    const dataFolhasAndRubricas = dataFolha.map((folha) => {
+        // Filtra as rubricas que correspondem ao cpf, mes_periodo e ano
+        const rubricasCorrespondentes = dataRubricas.filter(rubrica =>
+          rubrica.cpf === folha.cpf &&
+          rubrica.mes_periodo === folha.mes_periodo &&
+          rubrica.ano === folha.ano &&
+          rubrica.idTipoPagamento === folha.idTipoPagamento
+        );
+      
+        // Retorna o objeto folha com a chave rubricas adicionada
+        return {
+          ...folha,
+          rubricas: rubricasCorrespondentes
+        };
+      });
+
     Firebird.attach(options, (err, db) => {
         if (err) {
           return response.status(500).json({
@@ -102,7 +127,7 @@ const processCSV =  async(file, request, response)=>{
         }
   
         db.transaction(
-          Firebird.ISOLATION_READ_COMMITED,
+          Firebird.ISOLATION_READ_UNCOMMITTED,
           async (err, transaction) => {
             if (err) {
               db.detach();  
@@ -114,6 +139,10 @@ const processCSV =  async(file, request, response)=>{
                 
             try{
                 const dataPortal = await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
+                const {NOME:namePortal, ID: idOrgao, CNPJ: cnpjOrgao} = dataPortal[0]
+                const typePortal = getTypePortal(namePortal)
+                console.log(typePortal)
+                
                 //if(data)
                 if(dataPortal.length == 0 ){
                     return response.status(404).json({
@@ -121,29 +150,28 @@ const processCSV =  async(file, request, response)=>{
                         msg: "Erro, Portal não encontrado no sistema",
                         erro_msg: "não encontrado",
                     });
-                }
-                console.log(dataPortal)
 
-                for (let {nome,vinculo,mes_periodo,ano,orgao,cpf,matricula,cargo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto} of dataFolha){    
-                    
-                    //await executeQueryTrx(transaction,folhaSQL.created,[uuid(),nome,vinculo,mes_periodo,ano,dataPortal[0]["ID"],cpf,matricula,cargo,"2001-06-23",cargaHoraria,valorBruto,valorLiquido,valorDesconto])
                 }
+                //return response.json({dataFolhasAndRubricas})
+                for (let {nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas} of dataFolhasAndRubricas){    
+                    
+                    const idFolha = uuid();
+                    await executeQueryTrx(transaction,folhaSQL.created,[idFolha,nome,mes_periodo,ano,idTipoPagamento,idOrgao,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto])
+                    
+                    for (let {mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor} of rubricas){ 
+                        if(desconto == 'N'){
+                            desconto = 1
+                        }else{
+                            desconto = 0
+                        }
+                        await executeQueryTrx(transaction,rubricasModel.created,[uuid(),idFolha,cpf,mes_periodo,ano,idTipoPagamento, tipoPagamento,desconto,valor])
+                    }  
 
-                for (let {cpf,mes_periodo,ano,tipoPagamento,desconto,valor} of dataRubricas){
-                    if(desconto == 'N'){
-                        desconto = 1
-                    }else{
-                        desconto = 0
-                    }
-                    //console.log(cpf,mes_periodo,ano,tipoPagamento,desconto,valor)    
-            
-                    //await executeQueryTrx(transaction,rubricasModel.created,[uuid(),cpf,dataPortal[0]["ID"],mes_periodo,ano,tipoPagamento,desconto,valor])
+                    const resultdesconto = await executeQueryTrx(transaction,rubricasModel.checkDescontos,[idFolha])
+                    const desconto = resultdesconto[0]['DESCONTO_TOTAL']
                     
+                    await executeQueryTrx(transaction,folhaSQL.updateDesconto,[desconto,idFolha])
                 }
-                
-                //const a=  await executeQueryTrx(transaction,rubricasModel.checkDescontos,[])
-                //await executeQueryTrx(transaction,folhaSQL.updateDesconto,[])
-                //console.log(a)
 
                 // Commit...
                 transaction.commit((err) => {
@@ -165,11 +193,11 @@ const processCSV =  async(file, request, response)=>{
                    
                 }catch(error){
                     transaction.rollback();
-                    
+                    console.log(error)
                     return response.status(404).json({
                         error: true,
                         title: 'Erro, operação de cadastro de folha',
-                        
+                        err_msg: error
                     });
             }
           })
