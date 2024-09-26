@@ -384,6 +384,66 @@ module.exports = {
                     });
                 }
     },
+    searchByPeriodAndTables: async(request, response)=>{
+        const {idPortal,month,year} = request.params;
+
+        Firebird.attach(options, (err, db) => {
+            if (err) {
+              return response.status(500).json({
+                err: true,
+                erro_msg: err,
+                msg: "Erro, conexão",
+              });
+            }
+      
+            db.transaction(
+              Firebird.ISOLATION_READ_COMMITTED,
+              async (err, transaction) => {
+                if (err) {
+                  db.detach();  
+                  return response.status(500).json({
+                    err: true,
+                    msg: err,
+                  });
+                } 
+                    
+                try{
+                    const inforPortal = await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
+                    const periodos = await executeQueryTrx(transaction,folhaSQL.showPeriods,[idPortal,1])
+                    const folhas = await executeQueryTrx(transaction,folhaSQL.searchByPeriod,[month,year,idPortal])
+                    const folhasAgupadas = await executeQueryTrx(transaction,folhaSQL.selectByFunction,[month,year,idPortal])
+                    
+    
+                    // Commit...
+                    transaction.commit((err) => {
+                        if (err) {
+                        transaction.rollback();
+                        response.status(500).json({
+                            err: true,
+                            msg: "Erro, rollback realizado",
+                            erro_msg: err,
+                        });
+                        } else {
+                            console.log("Sucesso, Listagem")
+                            return response.status(200).json({
+                                error: false,
+                                title: 'Sucesso, Listagem das folhas',
+                                data:{inforPortal,periodos,folhas,folhasAgupadas}
+                            });
+                        }})
+                       
+                    }catch(error){
+                        transaction.rollback();
+                        console.log(error)
+                        return response.status(404).json({
+                            error: true,
+                            title: 'Erro, operação de listagem das folha',
+                            err_msg: error
+                        });
+                }
+              })
+        })
+    },
     searchByPeriodAndNotDisplayed: async(request, response)=>{
         const {idPortal,month,year} = request.params;
         console.log(idPortal)
@@ -451,6 +511,39 @@ module.exports = {
                         data: []
                     });
                 }
+    }, 
+    showPeriods: async(request, response)=>{
+        const {idPortal} = request.params;
+        console.log({idPortal})
+    
+            try {    
+                executeQuery(
+                    folhaSQL.showPeriods
+                     ,[idPortal,1],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na listagem de Periodos",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, na listagem de Periodos',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
     },
-
 }

@@ -14,6 +14,8 @@ routes.get("/:idPortal", folhaPagamentosControllers.listAll);
 routes.get("/:idPortal/listAll",  folhaPagamentosControllers.listAll);
 routes.get("/:idPortal/listAllAndNotDisplayed",  folhaPagamentosControllers.listAllAndNotDisplayed);
 routes.get("/:idPortal/searchByPeriod/:month/:year",  folhaPagamentosControllers.searchByPeriod);
+routes.get("/:idPortal/searchByPeriodAndTables/:month/:year",  folhaPagamentosControllers.searchByPeriodAndTables);
+routes.get("/:idPortal/showPeriods",  folhaPagamentosControllers.showPeriods);
 routes.get("/:idPortal/searchByPeriodAndNotDisplayed/:month/:year",  folhaPagamentosControllers.searchByPeriodAndNotDisplayed);
 routes.put("/:idPortal/changeView/:month/:year/:view",  folhaPagamentosControllers.changeView);
 

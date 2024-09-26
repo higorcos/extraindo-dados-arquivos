@@ -17,38 +17,38 @@ module.exports = {
                 FROM ARQ_FOLHADEPAGAMENTOS;`,
 
         listAll: `SELECT AFL.*, atf.NOME AS TIPO_FOLHA
-FROM ARQ_FOLHADEPAGAMENTOS afL
-INNER JOIN ORGAO o  
-ON O.ID = AFL.ORGAO 
-INNER JOIN ARQ_TIPOS_FOLHAS atf
-ON atf.ID = afl.TIPO_FOLHA 
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o  
+                ON O.ID = AFL.ORGAO 
+                INNER JOIN ARQ_TIPOS_FOLHAS atf
+                ON atf.ID = afl.TIPO_FOLHA 
                 WHERE AFL.VISUALIZACAO = 1 AND O.UUID=?`,
 
         listAllAndNotDisplayed: `SELECT AFL.*, atf.NOME AS TIPO_FOLHA
-FROM ARQ_FOLHADEPAGAMENTOS afL
-INNER JOIN ORGAO o  
-ON O.ID = AFL.ORGAO 
-INNER JOIN ARQ_TIPOS_FOLHAS atf
-ON atf.ID = afl.TIPO_FOLHA 
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o  
+                ON O.ID = AFL.ORGAO 
+                INNER JOIN ARQ_TIPOS_FOLHAS atf
+                ON atf.ID = afl.TIPO_FOLHA 
                 WHERE O.UUID=?`,
 
         searchByPeriod:`
                 SELECT AFL.*, atf.NOME AS TIPO_FOLHA
-FROM ARQ_FOLHADEPAGAMENTOS afL
-INNER JOIN ORGAO o  
-ON O.ID = AFL.ORGAO 
-INNER JOIN ARQ_TIPOS_FOLHAS atf
-ON atf.ID = afl.TIPO_FOLHA 
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o  
+                ON O.ID = AFL.ORGAO 
+                INNER JOIN ARQ_TIPOS_FOLHAS atf
+                ON atf.ID = afl.TIPO_FOLHA 
                 WHERE AFL.VISUALIZACAO = 1 AND AFL.MES_PERIODO=? AND AFL.ANO=? AND O.UUID = ?
         `,
 
         searchByPeriodAndNotDisplayed:`
                 SELECT AFL.*, atf.NOME AS TIPO_FOLHA
-FROM ARQ_FOLHADEPAGAMENTOS afL
-INNER JOIN ORGAO o  
-ON O.ID = AFL.ORGAO 
-INNER JOIN ARQ_TIPOS_FOLHAS atf
-ON atf.ID = afl.TIPO_FOLHA 
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o  
+                ON O.ID = AFL.ORGAO 
+                INNER JOIN ARQ_TIPOS_FOLHAS atf
+                ON atf.ID = afl.TIPO_FOLHA 
                 WHERE AFL.MES_PERIODO=? AND AFL.ANO=? AND O.UUID = ?
         `,
 
@@ -63,11 +63,36 @@ ON atf.ID = afl.TIPO_FOLHA
                 FROM ORGAO o
                 WHERE o.UUID = ?);`,
 
-        selectPeriods:`
+        showPeriods:`
                 SELECT DISTINCT AFL.MES_PERIODO, AFL.ANO 
                 FROM ARQ_FOLHADEPAGAMENTOS afL
                 INNER JOIN ORGAO o  
                 ON O.ID = AFL.ORGAO 
-                WHERE O.UUID = ? ANF;`,
+                WHERE O.UUID = ?
+                AND AFL.VISUALIZACAO=?
+                ORDER BY AFL.ANO DESC , afl.MES_PERIODO DESC`,
+        
+        selectByFunction:
+                `SELECT 
+                atf.NOME AS TIPO_FOLHA, 
+                AFL.VINCULO, 
+                AFL.CARGO, 
+                afl.LOTACAO,
+                afl.VALORBRUTO,
+                COUNT(*) AS CONTAGEM,
+                afl.VALORBRUTO * COUNT(*) AS VALOR_TOTAL
+            FROM 
+                ARQ_FOLHADEPAGAMENTOS afl
+            INNER JOIN 
+                ORGAO o ON o.ID = afl.ORGAO 
+            INNER JOIN 
+                ARQ_TIPOS_FOLHAS atf ON atf.ID = afl.TIPO_FOLHA 
+            WHERE 
+                afl.VISUALIZACAO = 1
+                AND afl.MES_PERIODO = ?
+                AND afl.ANO = ?
+                AND o.UUID = ?
+            GROUP BY 
+                atf.NOME, AFL.VINCULO, AFL.CARGO,afl.LOTACAO, afl.VALORBRUTO`,
 
 }
