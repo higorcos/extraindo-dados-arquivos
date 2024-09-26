@@ -82,13 +82,13 @@ const processCSV =  async(file, request, response)=>{
  
     for await(let lineRubricas of dataLineRubricas){
         const lineSplit = lineRubricas.split('|');
-        const columnCpf = 4
         const columnMes_Periodo = 1
         const columnAno = 2
-        const columnTipoPagamento = 7
-        const columnValor = 8
-        const columnDesconto = 14 
         const columnIdTipoPagamento = 3
+        const columnCpf = 4
+        const columnValor = 8
+        const columnTipoPagamento = 7
+        const columnDesconto = 14 
 
         dataRubricas.push({
         cpf: lineSplit[columnCpf],
@@ -154,11 +154,12 @@ const processCSV =  async(file, request, response)=>{
                 }
                 //return response.json({dataFolhasAndRubricas})
                 for (let {nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas} of dataFolhasAndRubricas){    
-                    
+                    console.log({nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas})
                     const idFolha = uuid();
                     await executeQueryTrx(transaction,folhaSQL.created,[idFolha,nome,mes_periodo,ano,idTipoPagamento,idOrgao,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto])
                     
                     for (let {mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor} of rubricas){ 
+                        console.log({mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor})
                         if(desconto == 'N'){
                             desconto = 1
                         }else{
@@ -228,13 +229,13 @@ const processXML = async(file, request, response)=>{
         data
     });
 }
-
+ 
 module.exports = {
     insert: async( request, response)=>{
         const {fileFolha, fileRubricas} = request.files;
         const files = request.files;
 
-       
+        console.log('wew')
         //apenas o tipo csv aceita folha e rubicas juntos
         switch (fileFolha[0]['mimetype']) {
             case 'text/csv':
@@ -243,11 +244,11 @@ module.exports = {
                 break;
             case 'application/vnd.ms-excel':
                 console.log("__XLS_EXECEL")
-                processXLS(fileFolha,request, response);
+                processXLS(fileFolha,request, response); 
                 break;
             case 'application/xml':
                 console.log("__XML")
-                processXML(fileFolha,request, response);
+                processXML(fileFolha,request, response); 
                 break;
             case 'application/json':
                 console.log("__JSON")
@@ -271,37 +272,6 @@ module.exports = {
             data: files[0].buffer
         });
     },
-    show: async (request, response)=>{
-        try {    
-        executeQuery(
-            `SELECT * FROM ORGAO`
-             ,[],
-            (err, result) => {
-                if (err) {
-                return response.status(502).json({
-                    error: true,
-                    error_title: "Erro, na resposta do banco de dados",
-                    error_msg: error,
-                    data: []
-                });
-                }
-             
-                return response.status(200).json({
-                    error: false,
-                    title: 'Sucesso, listagem de dados',
-                    data: result
-                });
-            }
-            );
-        }catch(error){       
-            return response.status(500).json({
-                error: true,
-                error_title: "Erro inesperado",
-                error_msg: error,
-                data: []
-            });
-        }
-    },
     list: async ( request, response)=>{
     
         //const a = await client.DadosExatraidosFolhaDePagementos.findMany();
@@ -311,6 +281,176 @@ module.exports = {
             data: []
             });
     
+    },
+    listAll: async(request, response)=>{
+    const {idPortal} = request.params;
+    console.log(idPortal)
+
+        try {    
+            executeQuery(
+                folhaSQL.listAll
+                 ,[idPortal],
+                (err, result) => {
+                    if (err) {
+                    return response.status(502).json({
+                        error: true,
+                        error_title: "Erro, na resposta do banco de dados",
+                        error_msg: err,
+                        data: []
+                    });
+                    }
+                 
+                    return response.status(200).json({
+                        error: false,
+                        title: 'Sucesso, listagem de dados',
+                        data: result
+                    });
+                }
+                );
+            }catch(error){       
+                return response.status(500).json({
+                    error: true,
+                    error_title: "Erro inesperado",
+                    error_msg: error,
+                    data: []
+                });
+            }
+    },
+    listAllAndNotDisplayed: async(request, response)=>{
+        const {idPortal} = request.params;
+        console.log(idPortal)
+    
+            try {    
+                executeQuery(
+                    folhaSQL.listAllAndNotDisplayed
+                     ,[idPortal],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na resposta do banco de dados",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, listagem de dados',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
+    },
+    searchByPeriod: async(request, response)=>{
+        const {idPortal,month,year} = request.params;
+        console.log(idPortal)
+    
+            try {    
+                executeQuery(
+                    folhaSQL.searchByPeriod
+                     ,[month,year,idPortal],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na resposta do banco de dados",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, listagem de dados',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
+    },
+    searchByPeriodAndNotDisplayed: async(request, response)=>{
+        const {idPortal,month,year} = request.params;
+        console.log(idPortal)
+    
+            try {    
+                executeQuery(
+                    folhaSQL.searchByPeriodAndNotDisplayed
+                     ,[month,year,idPortal],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na resposta do banco de dados",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, listagem de dados',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
+    },
+    changeView: async(request, response)=>{
+        const {idPortal,month,year,view} = request.params;
+        console.log({idPortal,month,year,view})
+    
+            try {    
+                executeQuery(
+                    folhaSQL.changeView
+                     ,[view,month,year,idPortal],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na ateração de visualização",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, na ateração de visualização',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
     },
 
 }
