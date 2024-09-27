@@ -428,7 +428,7 @@ module.exports = {
                             return response.status(200).json({
                                 error: false,
                                 title: 'Sucesso, Listagem das folhas',
-                                data:{inforPortal,periodos,folhas,folhasAgupadas}
+                                data:{inforPortal:inforPortal[0],periodos,folhas,folhasAgupadas}
                             });
                         }})
                        
