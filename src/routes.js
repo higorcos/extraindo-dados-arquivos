@@ -7,6 +7,6 @@ const othersRoutes = require("./routes/othersRoutes");
 
 routes.use("/folha",folhaPagamentosRoutes);
 routes.use("/user",usersRoutes);
-routes.use("/portais",othersRoutes);
+routes.use("/portais",othersRoutes); 
 
-module.exports = routes; 
+module.exports = routes;   
