@@ -72,6 +72,14 @@ module.exports = {
                 AND AFL.VISUALIZACAO=?
                 ORDER BY AFL.ANO DESC , afl.MES_PERIODO DESC`,
         
+        allPeriods:`
+                 SELECT DISTINCT AFL.MES_PERIODO, AFL.ANO, AFL.VISUALIZACAO
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o  
+                ON O.ID = AFL.ORGAO 
+                WHERE O.UUID = ?
+                ORDER BY AFL.ANO DESC , afl.MES_PERIODO DESC`,
+        
         selectByFunction:
                 `SELECT 
                 atf.NOME AS TIPO_FOLHA, 

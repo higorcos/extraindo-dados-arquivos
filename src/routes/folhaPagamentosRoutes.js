@@ -4,7 +4,7 @@ const multer = require('multer');
 const multerConfig = multer();     
 const folhaPagamentosControllers = require("../controllers/folhaPagamentosControllers");
 const {verifyJWT: middlewareAuth} = require("../middleware/auth"); //middleware
-
+ 
 routes.post("/:idPortal", multerConfig.fields([
     { name: 'fileFolha', maxCount: 1 },  
     { name: 'fileRubricas', maxCount: 1 } 
@@ -16,6 +16,7 @@ routes.get("/:idPortal/listAllAndNotDisplayed",  folhaPagamentosControllers.list
 routes.get("/:idPortal/searchByPeriod/:month/:year",  folhaPagamentosControllers.searchByPeriod);
 routes.get("/:idPortal/searchByPeriodAndTables/:month/:year",  folhaPagamentosControllers.searchByPeriodAndTables);
 routes.get("/:idPortal/showPeriods",  folhaPagamentosControllers.showPeriods);
+routes.get("/:idPortal/allPeriods",  folhaPagamentosControllers.allPeriods);
 routes.get("/:idPortal/searchByPeriodAndNotDisplayed/:month/:year",  folhaPagamentosControllers.searchByPeriodAndNotDisplayed);
 routes.put("/:idPortal/changeView/:month/:year/:view",  folhaPagamentosControllers.changeView);
 

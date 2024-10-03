@@ -546,4 +546,38 @@ module.exports = {
                     });
                 }
     },
+    allPeriods: async(request, response)=>{
+        const {idPortal} = request.params;
+        console.log({idPortal})
+    
+            try {    
+                executeQuery(
+                    folhaSQL.allPeriods
+                     ,[idPortal],
+                    (err, result) => {
+                        if (err) {
+                        return response.status(502).json({
+                            error: true,
+                            error_title: "Erro, na listagem de todos os Periodos",
+                            error_msg: err,
+                            data: []
+                        });
+                        }
+                     
+                        return response.status(200).json({
+                            error: false,
+                            title: 'Sucesso, na listagem de Periodos',
+                            data: result
+                        });
+                    }
+                    );
+                }catch(error){       
+                    return response.status(500).json({
+                        error: true,
+                        error_title: "Erro inesperado",
+                        error_msg: error,
+                        data: []
+                    });
+                }
+    },
 }
