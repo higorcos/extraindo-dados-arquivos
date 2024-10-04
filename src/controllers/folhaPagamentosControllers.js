@@ -133,7 +133,7 @@ const processCSV =  async(file, request, response)=>{
               db.detach();  
               return response.status(500).json({
                 err: true,
-                msg: err,
+                msg: err, 
               });
             } 
                 
@@ -150,16 +150,15 @@ const processCSV =  async(file, request, response)=>{
                         msg: "Erro, Portal não encontrado no sistema",
                         erro_msg: "não encontrado",
                     });
-
                 }
                 //return response.json({dataFolhasAndRubricas})
                 for (let {nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas} of dataFolhasAndRubricas){    
-                    console.log({nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas})
+                    //console.log({nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas})
                     const idFolha = uuid();
                     await executeQueryTrx(transaction,folhaSQL.created,[idFolha,nome,mes_periodo,ano,idTipoPagamento,idOrgao,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto])
                     
                     for (let {mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor} of rubricas){ 
-                        console.log({mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor})
+                        //console.log({mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor})
                         if(desconto == 'N'){
                             desconto = 1
                         }else{
@@ -169,7 +168,7 @@ const processCSV =  async(file, request, response)=>{
                     }  
 
                     const resultdesconto = await executeQueryTrx(transaction,rubricasModel.checkDescontos,[idFolha])
-                    const desconto = resultdesconto[0]['DESCONTO_TOTAL']
+                    const desconto = resultdesconto[0]['DESCONTO_TOTAL'] 
                     
                     await executeQueryTrx(transaction,folhaSQL.updateDesconto,[desconto,idFolha])
                 }
@@ -177,12 +176,12 @@ const processCSV =  async(file, request, response)=>{
                 // Commit...
                 transaction.commit((err) => {
                     if (err) {
-                    transaction.rollback();
-                    response.status(500).json({
-                        err: true,
-                        msg: "Erro, rollback realizado",
-                        erro_msg: err,
-                    });
+                        transaction.rollback();
+                        return response.status(500).json({
+                            err: true,
+                            msg: "Erro, rollback realizado",
+                            erro_msg: err,
+                        });
                     } else {
                         console.log("Sucesso, FL cadastradas")
                         return response.status(200).json({
