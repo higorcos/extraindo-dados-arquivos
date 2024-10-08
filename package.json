@@ -4,7 +4,8 @@
   "description": "Sistema para extrair informações de arquivo (CSV,JSON,XML) e enviar para o banco de dados",
   "main": "src/server.js",
   "scripts": {
-    "dev": "node --watch ."
+    "dev": "node --watch .",
+    "start": "node ./src/server.js"
   },
   "author": "Higor Costa",
   "license": "ISC",
