@@ -6,8 +6,6 @@ require("dotenv").config();
 const app = express()
 
 
-
-
 //cors
 app.use(
     cors({
@@ -23,8 +21,10 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 app.use(routes);
 
-app.listen(process.env.PORT_SERVER,() => {
+const server = app.listen(process.env.PORT_SERVER,() => {
     console.log(`\n\tServidor online !!! \n\tPorta: ${process.env.PORT_SERVER} \n\tModo: ${
       process.env.NODE_ENV
     }\n`)
 });
+server.setTimeout(500000);
+
