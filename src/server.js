@@ -26,5 +26,5 @@ const server = app.listen(process.env.PORT_SERVER,() => {
       process.env.NODE_ENV
     }\n`)
 });
-server.setTimeout(500000);
+server.setTimeout(600000);// 600.000 milissegundos = 10 minutos
 
