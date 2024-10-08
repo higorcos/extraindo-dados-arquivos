@@ -103,4 +103,23 @@ module.exports = {
             GROUP BY 
                 atf.NOME, AFL.VINCULO, AFL.CARGO,afl.LOTACAO, afl.VALORBRUTO`,
 
+        deleteRb:`DELETE FROM ARQ_RUBRICAS 
+          WHERE ID IN (              
+                SELECT ar.ID 
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o
+                ON O.ID = AFL.ORGAO 
+                INNER JOIN ARQ_RUBRICAS ar 
+                ON afl.ID = ar.FK_FL 
+                WHERE O.UUID=? AND afl.MES_PERIODO = ? AND afl.ANO = ?
+          );`,
+        
+          deleteFl:`DELETE FROM ARQ_FOLHADEPAGAMENTOS afL
+          WHERE afL.ID IN (SELECT afL.ID
+                FROM ARQ_FOLHADEPAGAMENTOS afL
+                INNER JOIN ORGAO o
+                ON O.ID = AFL.ORGAO 
+                WHERE O.UUID=? AND afl.MES_PERIODO = ? AND afl.ANO = ?
+          );`
+
 }

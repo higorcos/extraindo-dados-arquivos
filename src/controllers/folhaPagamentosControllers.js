@@ -511,6 +511,63 @@ module.exports = {
                     });
                 }
     }, 
+    delete: async(request, response)=>{
+        const {idPortal,month,year} = request.params;
+
+        Firebird.attach(options, (err, db) => {
+            if (err) {
+              return response.status(500).json({
+                err: true,
+                erro_msg: err,
+                msg: "Erro, conexão",
+              });
+            }
+      
+            db.transaction(
+              Firebird.ISOLATION_READ_COMMITTED,
+              async (err, transaction) => {
+                if (err) {
+                  db.detach();  
+                  return response.status(500).json({
+                    err: true,
+                    msg: err,
+                  });
+                } 
+                    
+                try{
+                    await executeQueryTrx(transaction,folhaSQL.deleteRb,[idPortal,month,year])
+                    await executeQueryTrx(transaction,folhaSQL.deleteFl,[idPortal,month,year])
+                    
+    
+                    // Commit...
+                    transaction.commit((err) => {
+                        if (err) {
+                        transaction.rollback();
+                        response.status(500).json({
+                            err: true,
+                            msg: "Erro, rollback realizado",
+                            erro_msg: err,
+                        });
+                        } else {
+                            return response.status(200).json({
+                                error: false,
+                                title: `Sucesso, delete de folha ${month}/${year}`,
+                                data:[]
+                            });
+                        }})
+                       
+                    }catch(error){
+                        transaction.rollback();
+                        console.log(error)
+                        return response.status(404).json({
+                            error: true,
+                            title: 'Erro, operação de delete de folha',
+                            err_msg: error
+                        });
+                }
+              })
+        })
+    },
     showPeriods: async(request, response)=>{
         const {idPortal} = request.params;
         console.log({idPortal})

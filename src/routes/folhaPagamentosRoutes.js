@@ -13,11 +13,14 @@ routes.post("/juntarCSV", multerConfig.array("file"), folhaPagamentosControllers
 routes.get("/:idPortal", folhaPagamentosControllers.listAll);
 routes.get("/:idPortal/listAll",  folhaPagamentosControllers.listAll);
 routes.get("/:idPortal/listAllAndNotDisplayed",  folhaPagamentosControllers.listAllAndNotDisplayed);
+routes.delete("/:idPortal/:month/:year",  folhaPagamentosControllers.delete);
+
 routes.get("/:idPortal/searchByPeriod/:month/:year",  folhaPagamentosControllers.searchByPeriod);
 routes.get("/:idPortal/searchByPeriodAndTables/:month/:year",  folhaPagamentosControllers.searchByPeriodAndTables);
 routes.get("/:idPortal/showPeriods",  folhaPagamentosControllers.showPeriods);
 routes.get("/:idPortal/allPeriods",  folhaPagamentosControllers.allPeriods);
 routes.get("/:idPortal/searchByPeriodAndNotDisplayed/:month/:year",  folhaPagamentosControllers.searchByPeriodAndNotDisplayed);
+
 routes.put("/:idPortal/changeView/:month/:year/:view",  folhaPagamentosControllers.changeView);
 
 module.exports = routes;
