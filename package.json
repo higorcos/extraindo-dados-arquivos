@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch .",
-    "start": "node ."
+    "start": "node ./src/server.js"
   },
   "author": "Higor Costa",
   "license": "ISC",
