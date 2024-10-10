@@ -12,7 +12,28 @@ const rubricasModel = require("../models/rubricasModels");
 const { formatDataDB } = require('../ultils/formatDate');
 const {getTypePortal} = require('../ultils/typePortal');
 
+const { Worker } = require('worker_threads');
+const {dividirArray} = require('../ultils/paralelo/ultils') 
 
+const runWorker = async (idPortal,dataFolhasAndRubricas)=>{
+    return new Promise((resolve, reject) => {
+        const worker = new Worker('./src/controllers/work-fl.js', {
+        workerData:{
+            idPortal,
+            dataFolhasAndRubricas
+        }  // Passa uma parte do array para o worker
+        });
+
+        worker.on('message', resolve); // Recebe mensagem do worker
+        worker.on('error', reject); // Captura erros do worker
+        worker.on('exit', (code) => { 
+        if (code !== 0) {
+            reject(new Error(`Worker parou com o código ${code}`));
+        }
+        });
+    });
+}
+  
 const processCSV =  async(file, request, response)=>{
     const {idPortal} = request.params;
     
@@ -102,106 +123,59 @@ const processCSV =  async(file, request, response)=>{
     }
 
     const dataFolhasAndRubricas = dataFolha.map((folha) => {
-        // Filtra as rubricas que correspondem ao cpf, mes_periodo e ano
-        const rubricasCorrespondentes = dataRubricas.filter(rubrica =>
-          rubrica.cpf === folha.cpf &&
-          rubrica.mes_periodo === folha.mes_periodo &&
-          rubrica.ano === folha.ano &&
-          rubrica.idTipoPagamento === folha.idTipoPagamento
-        );
-      
-        // Retorna o objeto folha com a chave rubricas adicionada
-        return {
-          ...folha,
-          rubricas: rubricasCorrespondentes
-        };
-      });
-
-    Firebird.attach(options, (err, db) => {
-        if (err) {
-          return response.status(500).json({
-            err: true,
-            erro_msg: err,
-            msg: "Erro, conexão",
-          });
+    // Filtra as rubricas que correspondem ao cpf, mes_periodo, ano e idTipoPagamento
+    const rubricasCorrespondentes = dataRubricas.filter(rubrica =>
+        rubrica.cpf === folha.cpf &&
+        rubrica.mes_periodo === folha.mes_periodo &&
+        rubrica.ano === folha.ano &&
+        rubrica.idTipoPagamento === folha.idTipoPagamento
+    );
+    
+    // Soma os valores da chave 'valor' dentro de 'rubricas' com a condição de desconto
+    const totalValorRubricas = rubricasCorrespondentes.reduce((acc, rubrica) => {
+        let desconto = rubrica.desconto;
+    
+        if (desconto === 'N') {
+        desconto = 1; // Se desconto for 'N', inclui o valor na soma
+        return acc + (rubrica.valor || 0); // Adiciona o valor à soma
+        } else {
+        desconto = 0; // Se desconto for diferente de 'N', não soma
+        return acc;
         }
-  
-        db.transaction(
-          Firebird.ISOLATION_READ_UNCOMMITTED,
-          async (err, transaction) => {
-            if (err) {
-              db.detach();  
-              return response.status(500).json({
-                err: true,
-                msg: err, 
-              });
-            } 
-                
-            try{
-                const dataPortal = await executeQueryTrx(transaction,folhaSQL.checkPortal,[idPortal])
-                const {NOME:namePortal, ID: idOrgao, CNPJ: cnpjOrgao} = dataPortal[0]
-                const typePortal = getTypePortal(namePortal)
-                console.log(typePortal)
-                
-                //if(data)
-                if(dataPortal.length == 0 ){
-                    return response.status(404).json({
-                        err: true,
-                        msg: "Erro, Portal não encontrado no sistema",
-                        erro_msg: "não encontrado",
-                    });
-                }
-                //return response.json({dataFolhasAndRubricas})
-                for (let {nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas} of dataFolhasAndRubricas){    
-                    //console.log({nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas})
-                    const idFolha = uuid();
-                    await executeQueryTrx(transaction,folhaSQL.created,[idFolha,nome,mes_periodo,ano,idTipoPagamento,idOrgao,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto])
-                    
-                    for (let {mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor} of rubricas){ 
-                        //console.log({mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor})
-                        if(desconto == 'N'){
-                            desconto = 1
-                        }else{
-                            desconto = 0
-                        }
-                        await executeQueryTrx(transaction,rubricasModel.created,[uuid(),idFolha,cpf,mes_periodo,ano,idTipoPagamento, tipoPagamento,desconto,valor])
-                    }  
+    }, 0);
+    
+    // Retorna o objeto 'folha' com a chave 'rubricas' e o total somado com duas casas decimais
+    return {
+        ...folha,
+        rubricas: rubricasCorrespondentes,
+        valorDesconto: totalValorRubricas.toFixed(2) // Formata com duas casas decimais
+    };
+    });
+ 
+    const newArray = dividirArray(dataFolhasAndRubricas)
 
-                    const resultdesconto = await executeQueryTrx(transaction,rubricasModel.checkDescontos,[idFolha])
-                    const desconto = resultdesconto[0]['DESCONTO_TOTAL'] 
-                    
-                    await executeQueryTrx(transaction,folhaSQL.updateDesconto,[desconto,idFolha])
-                }
+     Promise.all(newArray.map(array => runWorker(idPortal,array))) // Executa todos os workers
+     .then((res) => {
+        console.log(res)
+        console.log('Todos os workers completaram a tarefa');
 
-                // Commit...
-                transaction.commit((err) => {
-                    if (err) {
-                        transaction.rollback();
-                        return response.status(500).json({
-                            err: true,
-                            msg: "Erro, rollback realizado",
-                            erro_msg: err,
-                        });
-                    } else {
-                        console.log("Sucesso, FL cadastradas")
-                        return response.status(200).json({
-                            error: false,
-                            title: 'Sucesso, novos dados inserido via csv',
-                            
-                        });
-                    }})
-                   
-                }catch(error){
-                    transaction.rollback();
-                    console.log(error)
-                    return response.status(404).json({
-                        error: true,
-                        title: 'Erro, operação de cadastro de folha',
-                        err_msg: error
-                    });
-            }
-          })
-    })
+        return response.status(200).json({
+            error: false,
+            title: 'Sucesso, novos dados inserido via csv',
+        });
+    }).catch(err => {
+        console.error(err)
+        return response.status(500).json({
+            err: true,
+            msg: "Erro, rollback realizado",
+            erro_msg: err,
+        });
+
+    });
+
+
+
+       
 }
 const processXLS = async(file, request, response)=>{
 
@@ -234,7 +208,6 @@ module.exports = {
         const {fileFolha, fileRubricas} = request.files;
         const files = request.files;
 
-        console.log('wew')
         //apenas o tipo csv aceita folha e rubicas juntos
         switch (fileFolha[0]['mimetype']) {
             case 'text/csv':
@@ -636,4 +609,4 @@ module.exports = {
                     });
                 }
     },
-}
+} 
