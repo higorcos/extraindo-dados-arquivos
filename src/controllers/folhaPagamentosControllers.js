@@ -9,11 +9,11 @@ const Firebird = require("node-firebird");
 const options = require("../database/client");
 const folhaSQL = require("../models/folhaPagamentosModels")
 const rubricasModel = require("../models/rubricasModels");
-const { formatDataDB } = require('../ultils/formatDate');
+const { formatDataDB, formatDataDB_importPI } = require('../ultils/formatDate');
 const {getTypePortal} = require('../ultils/typePortal');
 
 const { Worker } = require('worker_threads');
-const {dividirArray} = require('../ultils/paralelo/ultils') 
+const {dividirArray} = require('../ultils/paralelo/ultils'); 
 
 const runWorker = async (idPortal,dataFolhasAndRubricas)=>{
     return new Promise((resolve, reject) => {
@@ -85,7 +85,7 @@ const processCSV =  async(file, request, response)=>{
         cargo: lineSplit[columnCargo],
         lotacao: lineSplit[columnLotacao],       
         vinculo: "" ,//lineSplit[columnLotacao], // Alterar aqui - Criar logicas
-        dataAdmissao:   formatDataDB(lineSplit[columnDataAdmissao]),//10
+        dataAdmissao:   formatDataDB(lineSplit[columnDataAdmissao]),
         cargaHoraria: lineSplit[columnCargaHoraria],
         valorBruto: parseFloat(lineSplit[columnValorBruto]),
         valorLiquido: parseFloat(lineSplit[columnValorLiquido]),
@@ -173,9 +173,6 @@ const processCSV =  async(file, request, response)=>{
 
     });
 
-
-
-       
 }
 const processXLS = async(file, request, response)=>{
 
@@ -191,21 +188,134 @@ const processXLS = async(file, request, response)=>{
         data
     });
 }
-const processXML = async(file, request, response)=>{
-    const {buffer} = file
+const processXML = async(files, request, response)=>{
+    const {fileFolha, fileCadastrosXML, fileHistoricoXML} = request.files;
+  
+    const {buffer: bufferFileFolha} = fileFolha[0]
+    const {buffer: bufferCadastros} = fileCadastrosXML[0]
+    const {buffer: bufferHistorico} = fileHistoricoXML[0]
+    
+    const rawFolha = transformObject(await extractDataXML_Servidores(bufferFileFolha))
+    const rawCadastros = transformObject(await extractDataXML_Servidores(bufferCadastros))
+    const rawHistorico = transformObject(await extractDataXML_Servidores(bufferHistorico))
 
-    const data = await extractDataXML_Servidores(buffer)
+    const newData = joinDataPI(rawHistorico,rawCadastros,rawFolha)
 
+
+
+    
+    //console.log(data)
     return response.status(200).json({
         error: false,
         title: 'Sucesso, novos dados inserido via XML',
-        data
+        data: newData
     });
 }
+const transformObject = (obj) => {
+    if (Array.isArray(obj)) {
+      // Caso seja um array, transforma cada item recursivamente
+      return obj.map((item) => transformObject(item));
+    }
+  
+    if (typeof obj === "object" && obj !== null) {
+      const newObject = {};
+  
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          const value = obj[key];
+  
+          // Remover o prefixo antes dos ":"
+          const newKey = key.includes(":") ? key.split(":")[1] : key;
+  
+          // Caso o valor seja um objeto com a propriedade 'value'
+          if (typeof value === "object" && value !== null && "value" in value) {
+            newObject[newKey] = value.value; // Adiciona ao novo objeto
+          }
+          // Caso o valor seja outro objeto ou array, processa recursivamente
+          else {
+            newObject[newKey] = transformObject(value);
+          }
+        }
+      }
+  
+      return newObject;
+    }
+  
+    // Retorna diretamente valores simples (string, number, etc.)
+    return obj;
+};
+const renameRubricasKeys = (eventoArray, cpf, mes,ano) => {
+return eventoArray.map((evento) => ({
+    cpf: cpf || "",
+    mes_periodo: mes || "",
+    ano: ano || "",
+    tipoPagamento: evento.descricaoEvenUnidGestora || "", // Renomeando 'tipoEvento' para 'tipoPagamento'
+    idTipoPagamento: "TCE-PI-ID-" + evento.tipoEvento || "", // Renomeando 'codigoEvento' para 'idTipoPagamento'
+    desconto: evento.tipoEvento === "2" ? 'N' : 'S', // Exemplo: mapeando 'incideIR' para 'desconto'
+    valor: parseFloat(evento.valor) || 0, // Mantendo a chave 'valor' ou ajustando formato
+}));
+};
+const joinDataPI = (historicos, rawCadastros, folhaPagamento) => {
+const cargos = rawCadastros.CadastrosAuxiliaresSagresFolha.Cargo;
+const lotacoes = rawCadastros.CadastrosAuxiliaresSagresFolha.lotacao;
+const servidores = rawCadastros.CadastrosAuxiliaresSagresFolha.Servidor;
+const PrestacaoContas =  folhaPagamento.folhaPagamento.PrestacaoContas;
+
+
+return historicos.historicos.HistoricoFuncional.map((historico) => {
+    const { matricula, informacoesAlteradas } = historico;
+
+    // Adicionar informações pessoais com base na matrícula
+    const infoPessoais = servidores.find((servidor) => servidor.matricula === matricula);
+
+    // Adicionar informações de Cargo e Lotação
+    const { atoTipo01 } = informacoesAlteradas;
+    const cargoRelacionado = cargos.find((cargo) => cargo.codigoCargo === atoTipo01.codigoCargo);
+    const lotacaoRelacionada = lotacoes.find(
+    (lotacao) => lotacao.codigoLotacao === atoTipo01.codigoLotacao
+    );
+
+    // Buscar as informações de folha de pagamento baseadas na matrícula
+    const folhaPgInfo = folhaPagamento.folhaPagamento.servidorFolha.find(
+    (folha) => folha.matricula === matricula
+    );
+
+    // Somar os valores dos eventos tipo 2 para calcular o desconto de remuneração
+    let descontoRemuneracao = 0;
+    if (folhaPgInfo && folhaPgInfo.evento) {
+    folhaPgInfo.evento.forEach((evento) => {
+        if (evento.tipoEvento === "2") {
+        descontoRemuneracao += parseFloat(evento.valor); // Somando o valor dos eventos tipo 2
+        }
+    });
+    } 
+    // Construir o objeto final com chaves fixas e os dados processados
+    return {
+    cpf: infoPessoais?.cpfServidor || "", 
+    nome: infoPessoais?.nomeServido || "", 
+    mes_periodo: PrestacaoContas.mesReferencia || "", 
+    ano: PrestacaoContas.anoReferencia || "",
+    idTipoPagamento: "TCE-PI-ID-"+ folhaPgInfo.tipoFolha || "", 
+    orgao: '',
+    matricula:  infoPessoais?.matricula || "", 
+    cargo: cargoRelacionado?.nomeDoCargo || "",
+    lotacao: lotacaoRelacionada?.nomeLotacao || "",
+    cbo: cargoRelacionado.tipoOcupacao || "", 
+    vinculo: "TCE-PI-ID-"+informacoesAlteradas?.atoTipo01.tipoVinculo || "",  
+    dataAdmissao: formatDataDB_importPI(informacoesAlteradas.atoTipo01.dataPosse) || "",
+    cargaHoraria: cargoRelacionado?.cargaHoraria || "",
+    valorBruto: parseFloat(folhaPgInfo?.remuneracaoTotal || 0), 
+    valorLiquido: parseFloat(folhaPgInfo?.remuneracaoLiquida || 0), 
+    valorDesconto: parseFloat(descontoRemuneracao.toFixed(2)) || "", 
+    rubricas: renameRubricasKeys(folhaPgInfo.evento,infoPessoais.cpfServidor,PrestacaoContas.mesReferencia,PrestacaoContas.anoReferencia),
+    };
  
+});
+};
+
 module.exports = {
     insert: async( request, response)=>{
-        const {fileFolha, fileRubricas} = request.files;
+        const {fileFolha, fileRubricas, fileCadastrosXML, fileHistoricoXML} = request.files;
         const files = request.files;
 
         //apenas o tipo csv aceita folha e rubicas juntos
@@ -220,7 +330,18 @@ module.exports = {
                 break;
             case 'application/xml':
                 console.log("__XML")
-                processXML(fileFolha,request, response); 
+                if (
+                    (!fileCadastrosXML || fileCadastrosXML.length === 0) ||
+                    (!fileHistoricoXML || fileHistoricoXML.length === 0)
+                ) {
+
+                    return response.status(400).json({
+                        err: true,
+                        err_msg: "Error, Faltando Arquivos",
+                    });
+                }else{
+                    processXML(files,request, response); 
+                }
                 break;
             case 'application/json':
                 console.log("__JSON")

@@ -51,7 +51,7 @@ const extractDataXLS_Servidores = async (file,params) => {
 }
 const extractDataXML_Servidores = async (file) =>{
     
-    var result = xmljson.xml2json(file, {compact: true, spaces: 4});
+    var result = xmljson.xml2json(file, {compact: true, spaces: 4,  ignoreComment : true , textKey:'value' });
     return JSON.parse(result)
 }
 

@@ -7,7 +7,9 @@ const {verifyJWT: middlewareAuth} = require("../middleware/auth"); //middleware
  
 routes.post("/:idPortal", multerConfig.fields([
     { name: 'fileFolha', maxCount: 1 },  
-    { name: 'fileRubricas', maxCount: 1 } 
+    { name: 'fileRubricas', maxCount: 1 },
+    { name: 'fileHistoricoXML', maxCount: 1 },  
+    { name: 'fileCadastrosXML', maxCount: 1 },  
 ]), folhaPagamentosControllers.insert);
 routes.post("/juntarCSV", multerConfig.array("file"), folhaPagamentosControllers.joinCSV);
 routes.get("/:idPortal", folhaPagamentosControllers.listAll);
