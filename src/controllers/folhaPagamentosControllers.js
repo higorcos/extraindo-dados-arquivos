@@ -3,13 +3,13 @@ const { extractDataXLS_Servidores, extractDataXML_Servidores } = require('../ult
 const {executeQuery,executeQueryTrx} = require('../database/type');
 const { v4: uuid } = require('uuid');
 const { Readable } = require('stream');
-const readLine = require('readline');
+const readLine = require('readline'); 
 
 const Firebird = require("node-firebird");
 const options = require("../database/client");
 const folhaSQL = require("../models/folhaPagamentosModels")
 const rubricasModel = require("../models/rubricasModels");
-const { formatDataDB, formatDataDB_importPI } = require('../ultils/formatDate');
+const { formatDataDB, formatDataDB_importPI,formatMesReferenciaPI } = require('../ultils/formatDate');
 const {getTypePortal} = require('../ultils/typePortal');
 
 const { Worker } = require('worker_threads');
@@ -32,8 +32,7 @@ const runWorker = async (idPortal,dataFolhasAndRubricas)=>{
         }
         });
     });
-}
-  
+} 
 const processCSV =  async(file, request, response)=>{
     const {idPortal} = request.params;
     
@@ -189,6 +188,7 @@ const processXLS = async(file, request, response)=>{
     });
 }
 const processXML = async(files, request, response)=>{
+    const {idPortal} = request.params;  
     const {fileFolha, fileCadastrosXML, fileHistoricoXML} = request.files;
   
     const {buffer: bufferFileFolha} = fileFolha[0]
@@ -199,17 +199,38 @@ const processXML = async(files, request, response)=>{
     const rawCadastros = transformObject(await extractDataXML_Servidores(bufferCadastros))
     const rawHistorico = transformObject(await extractDataXML_Servidores(bufferHistorico))
 
-    const newData = joinDataPI(rawHistorico,rawCadastros,rawFolha)
+    console.log('Todos os workers completaram a tarefa');
 
-
-
-    
-    //console.log(data)
-    return response.status(200).json({
+    //const newData = joinDataPI(rawHistorico,rawCadastros,rawFolha, idPortal)
+   return response.status(200).json({
         error: false,
-        title: 'Sucesso, novos dados inserido via XML',
-        data: newData
+        title: 'Sucesso, novos dados inserido via csv',
+       //data: newData
+       data: {rawCadastros,rawHistorico}
+    }); 
+    
+    const newArray = dividirArray(newData)
+
+     Promise.all(newArray.map(array => runWorker(idPortal,array))) // Executa todos os workers
+     .then((res) => {
+        console.log(res)
+        console.log('Todos os workers completaram a tarefa');
+
+        return response.status(200).json({
+            error: false,
+            title: 'Sucesso, novos dados inserido via csv',
+            data:newData
+        });
+    }).catch(err => {
+        console.error(err)
+        return response.status(500).json({
+            err: true,
+            msg: "Erro, rollback realizado",
+            erro_msg: err,
+        });
+
     });
+    
 }
 const transformObject = (obj) => {
     if (Array.isArray(obj)) {
@@ -245,7 +266,9 @@ const transformObject = (obj) => {
     return obj;
 };
 const renameRubricasKeys = (eventoArray, cpf, mes,ano) => {
-return eventoArray.map((evento) => ({
+    const ensureArray = (value) => (Array.isArray(value) ? value : [value]);
+    const eventos = ensureArray(eventoArray);
+return eventos.map((evento) => ({
     cpf: cpf || "",
     mes_periodo: mes || "",
     ano: ano || "",
@@ -255,11 +278,12 @@ return eventoArray.map((evento) => ({
     valor: parseFloat(evento.valor) || 0, // Mantendo a chave 'valor' ou ajustando formato
 }));
 };
-const joinDataPI = (historicos, rawCadastros, folhaPagamento) => {
+const joinDataPI = (historicos, rawCadastros, folhaPagamento, orgao) => {
 const cargos = rawCadastros.CadastrosAuxiliaresSagresFolha.Cargo;
 const lotacoes = rawCadastros.CadastrosAuxiliaresSagresFolha.lotacao;
 const servidores = rawCadastros.CadastrosAuxiliaresSagresFolha.Servidor;
 const PrestacaoContas =  folhaPagamento.folhaPagamento.PrestacaoContas;
+const mes = formatMesReferenciaPI(PrestacaoContas.mesReferencia) || ""
 
 
 return historicos.historicos.HistoricoFuncional.map((historico) => {
@@ -279,35 +303,40 @@ return historicos.historicos.HistoricoFuncional.map((historico) => {
     const folhaPgInfo = folhaPagamento.folhaPagamento.servidorFolha.find(
     (folha) => folha.matricula === matricula
     );
-
+  
     // Somar os valores dos eventos tipo 2 para calcular o desconto de remuneração
     let descontoRemuneracao = 0;
+    const ensureArray = (value) => (Array.isArray(value) ? value : [value]);
+
+
     if (folhaPgInfo && folhaPgInfo.evento) {
-    folhaPgInfo.evento.forEach((evento) => {
-        if (evento.tipoEvento === "2") {
-        descontoRemuneracao += parseFloat(evento.valor); // Somando o valor dos eventos tipo 2
-        }
-    });
-    } 
+        const eventos = ensureArray(folhaPgInfo.evento);
+
+        eventos.forEach((evento) => {
+            if (evento.tipoEvento === "2") {
+                descontoRemuneracao += parseFloat(evento.valor);
+            }
+        });
+    }
     // Construir o objeto final com chaves fixas e os dados processados
     return {
     cpf: infoPessoais?.cpfServidor || "", 
-    nome: infoPessoais?.nomeServido || "", 
-    mes_periodo: PrestacaoContas.mesReferencia || "", 
+    mes_periodo: mes || "", 
     ano: PrestacaoContas.anoReferencia || "",
     idTipoPagamento: "TCE-PI-ID-"+ folhaPgInfo.tipoFolha || "", 
-    orgao: '',
+    nome: infoPessoais?.nomeServidor || "", 
+    orgao,
     matricula:  infoPessoais?.matricula || "", 
     cargo: cargoRelacionado?.nomeDoCargo || "",
     lotacao: lotacaoRelacionada?.nomeLotacao || "",
     cbo: cargoRelacionado.tipoOcupacao || "", 
-    vinculo: "TCE-PI-ID-"+informacoesAlteradas?.atoTipo01.tipoVinculo || "",  
+    vinculo: '',//"TCE-PI-ID-"+informacoesAlteradas?.atoTipo01.tipoVinculo || "",  
     dataAdmissao: formatDataDB_importPI(informacoesAlteradas.atoTipo01.dataPosse) || "",
     cargaHoraria: cargoRelacionado?.cargaHoraria || "",
     valorBruto: parseFloat(folhaPgInfo?.remuneracaoTotal || 0), 
     valorLiquido: parseFloat(folhaPgInfo?.remuneracaoLiquida || 0), 
-    valorDesconto: parseFloat(descontoRemuneracao.toFixed(2)) || "", 
-    rubricas: renameRubricasKeys(folhaPgInfo.evento,infoPessoais.cpfServidor,PrestacaoContas.mesReferencia,PrestacaoContas.anoReferencia),
+    valorDesconto: parseFloat(descontoRemuneracao.toFixed(2)) || 0, 
+    rubricas: renameRubricasKeys(folhaPgInfo.evento,infoPessoais.cpfServidor,mes,PrestacaoContas.anoReferencia),
     };
  
 });
@@ -483,11 +512,11 @@ module.exports = {
         Firebird.attach(options, (err, db) => {
             if (err) {
               return response.status(500).json({
-                err: true,
+                err: true, 
                 erro_msg: err,
                 msg: "Erro, conexão",
               });
-            }
+            } 
       
             db.transaction(
               Firebird.ISOLATION_READ_COMMITTED,

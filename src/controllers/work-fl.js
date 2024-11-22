@@ -20,7 +20,7 @@ Firebird.attach(options,(err, db) => {
     Firebird.ISOLATION_READ_COMMITTED,
     async (err, transaction) => {
       if (err) {
-        db.detach();  
+        db.detach();   
         console.log('Erro, inesperado')
         parentPort.postMessage({ success: false, message: 'Erro, inesperado' }); 
       } 
@@ -36,10 +36,10 @@ Firebird.attach(options,(err, db) => {
 
                   
           for (let {nome,mes_periodo,ano,idTipoPagamento,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto,rubricas} of dataFolhasAndRubricas){    
-              //console.log('.')
-              const idFolha = uuid();
+              //console.log(cpf,cargaHoraria,valorBruto,valorLiquido,valorDesconto, typeof valorDesconto)
+              const idFolha = uuid(); 
               await executeQueryTrx(transaction,folhaSQL.created,[idFolha,nome,mes_periodo,ano,idTipoPagamento,idOrgao,cpf,matricula,cbo,cargo,lotacao, vinculo,dataAdmissao,cargaHoraria,valorBruto,valorLiquido,valorDesconto])
-
+ 
               for (let {mes_periodo,ano,cpf,tipoPagamento,idTipoPagamento,desconto,valor} of rubricas){ 
                   if(desconto == 'N'){
                       desconto = 1
