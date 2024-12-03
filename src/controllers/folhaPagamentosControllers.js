@@ -15,6 +15,7 @@ const {getTypePortal} = require('../ultils/typePortal');
 const { Worker } = require('worker_threads');
 const {dividirArray} = require('../ultils/paralelo/ultils'); 
 
+
 const runWorker = async (idPortal,dataFolhasAndRubricas)=>{
     return new Promise((resolve, reject) => {
         const worker = new Worker('./src/controllers/work-fl.js', {
@@ -201,13 +202,13 @@ const processXML = async(files, request, response)=>{
 
     console.log('Todos os workers completaram a tarefa');
 
-    //const newData = joinDataPI(rawHistorico,rawCadastros,rawFolha, idPortal)
-   return response.status(200).json({
+const newData = joinDataPI(rawHistorico,rawCadastros,rawFolha, idPortal)
+  /*  return response.status(200).json({
         error: false,
         title: 'Sucesso, novos dados inserido via csv',
-       //data: newData
-       data: {rawCadastros,rawHistorico}
-    }); 
+       data: newData
+       //data: {rawCadastros,rawHistorico}
+    });  */
     
     const newArray = dividirArray(newData)
 
@@ -290,14 +291,16 @@ return historicos.historicos.HistoricoFuncional.map((historico) => {
     const { matricula, informacoesAlteradas } = historico;
 
     // Adicionar informações pessoais com base na matrícula
+    console.log(matricula)
     const infoPessoais = servidores.find((servidor) => servidor.matricula === matricula);
 
+
     // Adicionar informações de Cargo e Lotação
+    console.log(lotacoes)
+    
     const { atoTipo01 } = informacoesAlteradas;
-    const cargoRelacionado = cargos.find((cargo) => cargo.codigoCargo === atoTipo01.codigoCargo);
-    const lotacaoRelacionada = lotacoes.find(
-    (lotacao) => lotacao.codigoLotacao === atoTipo01.codigoLotacao
-    );
+    const cargoRelacionado = cargos?.find((cargo) => cargo?.codigoCargo === atoTipo01?.codigoCargo);
+    const lotacaoRelacionada = lotacoes?.find((lotacao) => lotacao?.codigoLotacao === atoTipo01?.codigoLotacao);
 
     // Buscar as informações de folha de pagamento baseadas na matrícula
     const folhaPgInfo = folhaPagamento.folhaPagamento.servidorFolha.find(
@@ -318,28 +321,34 @@ return historicos.historicos.HistoricoFuncional.map((historico) => {
             }
         });
     }
+
+    if(infoPessoais == undefined){
+        return 
+    }else{
+
+    }
     // Construir o objeto final com chaves fixas e os dados processados
     return {
-    cpf: infoPessoais?.cpfServidor || "", 
-    mes_periodo: mes || "", 
-    ano: PrestacaoContas.anoReferencia || "",
-    idTipoPagamento: "TCE-PI-ID-"+ folhaPgInfo.tipoFolha || "", 
-    nome: infoPessoais?.nomeServidor || "", 
-    orgao,
-    matricula:  infoPessoais?.matricula || "", 
-    cargo: cargoRelacionado?.nomeDoCargo || "",
-    lotacao: lotacaoRelacionada?.nomeLotacao || "",
-    cbo: cargoRelacionado.tipoOcupacao || "", 
-    vinculo: '',//"TCE-PI-ID-"+informacoesAlteradas?.atoTipo01.tipoVinculo || "",  
-    dataAdmissao: formatDataDB_importPI(informacoesAlteradas.atoTipo01.dataPosse) || "",
-    cargaHoraria: cargoRelacionado?.cargaHoraria || "",
-    valorBruto: parseFloat(folhaPgInfo?.remuneracaoTotal || 0), 
-    valorLiquido: parseFloat(folhaPgInfo?.remuneracaoLiquida || 0), 
-    valorDesconto: parseFloat(descontoRemuneracao.toFixed(2)) || 0, 
-    rubricas: renameRubricasKeys(folhaPgInfo.evento,infoPessoais.cpfServidor,mes,PrestacaoContas.anoReferencia),
+        cpf: infoPessoais?.cpfServidor || "", 
+        mes_periodo: mes || "", 
+        ano: PrestacaoContas?.anoReferencia || "",
+        idTipoPagamento: "TCE-PI-ID-"+ folhaPgInfo?.tipoFolha || "", 
+        nome: infoPessoais?.nomeServidor || "", 
+        orgao,
+        matricula:  infoPessoais?.matricula || "", 
+        codigoCargo: cargoRelacionado?.codigoCargo || "",
+        cargo: cargoRelacionado?.nomeDoCargo || "",
+        lotacao: lotacaoRelacionada?.nomeLotacao || "",
+        cbo: cargoRelacionado?.tipoOcupacao || "", 
+        vinculo: '',//"TCE-PI-ID-"+informacoesAlteradas?.atoTipo01.tipoVinculo || "",  
+        dataAdmissao: formatDataDB_importPI(informacoesAlteradas?.atoTipo01?.dataPosse|| ""),
+        cargaHoraria: cargoRelacionado?.cargaHoraria || "",
+        valorBruto: parseFloat(folhaPgInfo?.remuneracaoTotal || 0), 
+        valorLiquido: parseFloat(folhaPgInfo?.remuneracaoLiquida || 0), 
+        valorDesconto: parseFloat(descontoRemuneracao.toFixed(2)) || 0, 
+        rubricas: renameRubricasKeys(folhaPgInfo.evento,infoPessoais?.cpfServidor || '' ,mes,PrestacaoContas.anoReferencia),
     };
- 
-});
+}).filter((item) => {return item != null}); // Filtrar objetos nulos
 };
 
 module.exports = {
@@ -347,6 +356,7 @@ module.exports = {
         const {fileFolha, fileRubricas, fileCadastrosXML, fileHistoricoXML} = request.files;
         const files = request.files;
 
+        console.log(fileFolha[0]['mimetype'])
         //apenas o tipo csv aceita folha e rubicas juntos
         switch (fileFolha[0]['mimetype']) {
             case 'text/csv':
@@ -358,6 +368,21 @@ module.exports = {
                 processXLS(fileFolha,request, response); 
                 break;
             case 'application/xml':
+                console.log("__XML")
+                if (
+                    (!fileCadastrosXML || fileCadastrosXML.length === 0) ||
+                    (!fileHistoricoXML || fileHistoricoXML.length === 0)
+                ) {
+
+                    return response.status(400).json({
+                        err: true,
+                        err_msg: "Error, Faltando Arquivos",
+                    });
+                }else{
+                    processXML(files,request, response); 
+                }
+                break;
+            case 'text/xml':
                 console.log("__XML")
                 if (
                     (!fileCadastrosXML || fileCadastrosXML.length === 0) ||
